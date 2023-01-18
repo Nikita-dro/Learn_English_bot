@@ -15,11 +15,11 @@ bot = Bot(token=TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
-path_accounts = r'data\accounts.txt'
-path_levels = r'data\levels.txt'
+path_accounts = r'accounts copy.txt'
+path_levels = r'levels copy.txt'
 path_description = r'description.txt'
 path_info = r'levels_english'
-path_count_words = r'data\count_words.txt'
+path_count_words = r'count_words copy.txt'
 id_user = []
 lvl_user = []
 words_all = []
