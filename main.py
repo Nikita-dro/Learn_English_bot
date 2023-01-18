@@ -15,11 +15,11 @@ bot = Bot(token=TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
-path_accounts = r'D:\Python\project\Learn_English_bot\data\accounts.txt'
-path_levels = r'D:\Python\project\Learn_English_bot\data\levels.txt'
-path_description = r'D:\Python\project\Learn_English_bot\description.txt'
-path_info = r'D:\Python\project\Learn_English_bot\levels_english'
-path_count_words = r'D:\Python\project\Learn_English_bot\data\count_words.txt'
+path_accounts = r'data\accounts.txt'
+path_levels = r'data\levels.txt'
+path_description = r'description.txt'
+path_info = r'levels_english'
+path_count_words = r'data\count_words.txt'
 id_user = []
 lvl_user = []
 words_all = []
@@ -372,7 +372,7 @@ async def answer_check(msg: types.Message, state=FSMContext):
                     await msg.answer('Молодец! Ты выучил все слова этого уровня!', reply_markup=inline_test)
                     await Level_english.test.set()
 
-@dp.callback_query_handler(lambda c: c.data == 'test', state=Level_english.test)
+@dp.callback_query_handler(lambda c: c.data == 'test', state='*')
 async def mode_test(msg: types.CallbackQuery, state=FSMContext):
     await msg.message.answer('Красава')
 
