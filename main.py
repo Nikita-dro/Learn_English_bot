@@ -51,6 +51,11 @@ cards_1 = types.InlineKeyboardButton('Режим заучивание👨‍🏫
 cards_2 = types.InlineKeyboardButton('Back👈', callback_data='back')
 inline_cards.add(cards_1, cards_2)
 
+inline_test = types.InlineKeyboardMarkup()
+test_1 = types.InlineKeyboardButton('Тест📌', callback_data='test')
+test_2 = types.InlineKeyboardButton('Back👈', callback_data='back')
+inline_test.add(test_1, test_2)
+
 inline_keyboard = types.InlineKeyboardMarkup()
 inline_btn_1 = types.InlineKeyboardButton('Войти в аккаунт📲', callback_data='enter')
 inline_btn_2 = types.InlineKeyboardButton('Зарегистрироваться📄', callback_data='registration')
@@ -77,6 +82,7 @@ class Level_english(StatesGroup):
     mode_memory = State()
     check_otvet = State()
     repeat = State()
+    test = State()
 
 def check_lvl(data):
     with open(path_levels, 'r') as file:
@@ -92,6 +98,7 @@ def lvl():
                 for el in i.strip('\n').split(','):
                     if len(el) == 2:
                         lvl_keyboard.add(types.InlineKeyboardButton(el, callback_data=el))
+    lvl_keyboard.add(types.InlineKeyboardButton('Back👈', callback_data='back'))
     return lvl_keyboard
 
 def translate_word(words):
@@ -146,7 +153,7 @@ def count_words():
                         h = file_3.readlines()
                     with open(path_levels, 'w') as file_4:
                         for h_1 in h:
-                            h_1 = h_1.strip()
+                            h_1 = h_1.strip('\n')
                             if lvl_user[0] in h_1:
                                 pass
                             else:
@@ -187,11 +194,15 @@ async def send_welcome(msg: types.Message, state=FSMContext):
     await msg.answer('Привет! Я бот для изучения английской лексики по разным уровням.', reply_markup=inline_keyboard)
 
 #Выходы из разных ситуаций с помощью кнопки "Back"
-@dp.callback_query_handler(lambda c: c.data == 'back', state=[Level_english.mode_1, Level_english.mode_memory])
+@dp.callback_query_handler(lambda c: c.data == 'back', state=[Level_english.mode_1, Level_english.mode_memory, Level_english.test])
 async def back_registration(msg: types.CallbackQuery, state=FSMContext):
     await msg.message.edit_text('Теперь выбери режим изучения!🤗', reply_markup=inline_mode)
-    await Level_english.mode_memory.set()
 
+@dp.callback_query_handler(lambda c: c.data == 'back', state=Level_english.mode_2)
+async def back_registration(msg: types.CallbackQuery, state=FSMContext):
+    await msg.message.edit_text('Выберите еще раз что вас интересует!', reply_markup=choice_md)
+    await Level_english.choice.set()
+    
 @dp.callback_query_handler(lambda c: c.data == 'back', state=Level_english.repeat)
 async def back_registration(msg: types.CallbackQuery, state=FSMContext):
     await msg.message.edit_text('Теперь выбери режим изучения!🤗', reply_markup=inline_mode)
@@ -274,13 +285,17 @@ async def enter_mode(msg: types.CallbackQuery, state=FSMContext):
     await Level_english.mode_1.set()
 
 #Выбор режима изучения
-@dp.callback_query_handler(lambda c: c.data == 'description', state=Level_english.mode_1)
+@dp.callback_query_handler(lambda c: c.data == 'description', state=[Level_english.mode_1, Level_english.mode_memory, Level_english.test])
 async def mode_description(msg: types.CallbackQuery, state=FSMContext):
     with open(path_description, 'r', encoding='utf-8') as file:
         a = file.read()
     await msg.message.edit_text(a, parse_mode='HTML', reply_markup=inline_back)
 
 #Режим карточки
+@dp.callback_query_handler(lambda c: c.data == 'cards', state=Level_english.test)
+async def error_cards(msg: types.CallbackQuery, state=FSMContext):
+    await msg.answer('🛑 Ты уже прошел все слова. Пора перейти к тесту!😗')
+
 @dp.callback_query_handler(lambda c: c.data == 'cards', state=[Level_english.mode_1, Level_english.mode_memory])
 async def mode_cards(msg: types.CallbackQuery, state=FSMContext):
     with open(path_count_words, 'r+') as file_1:
@@ -298,6 +313,10 @@ async def mode_cards(msg: types.CallbackQuery, state=FSMContext):
             await Level_english.mode_memory.set()
 
 # Режим заучивание
+@dp.callback_query_handler(lambda c: c.data == 'memorization', state=Level_english.test)
+async def mode_error(msg: types.CallbackQuery, state=FSMContext):
+    await msg.answer('🛑 Ты уже прошел все слова. Пора перейти к тесту!😗')
+
 @dp.callback_query_handler(lambda c: c.data == 'memorization', state=Level_english.mode_1)
 async def mode_mem(msg: types.CallbackQuery, state=FSMContext):
     await msg.answer('🛑 Сначало пройди режим карточки!')
@@ -334,16 +353,29 @@ async def answer_check(msg: types.Message, state=FSMContext):
             await msg.answer(f'✍️{k} - {"?"*5}', reply_markup=types.ReplyKeyboardRemove())
         word_text.remove(k)
     else:
-        if msg.text.lower() == word_origin[14]:
+        if msg.text.lower() == word_origin[-1]:
             await msg.answer('Правильно!')
         else:
             await msg.answer(f'{choice(answer_on_wrong)}')
             for gg in words_all:
-                if word_origin[14].capitalize() in gg:
+                if word_origin[-1].capitalize() in gg:
                     await msg.answer(f'‼️{gg}‼️')
         await msg.answer('😊', reply_markup=types.ReplyKeyboardRemove())
-        await msg.answer('Молодец! Ты прошел режим заучивания этих 15 слов!', reply_markup=inline_back)
-        await Level_english.repeat.set()
+        with open(path_levels, 'r') as file:
+            d = file.readlines()
+            for levl in d:
+                levl = levl.strip('\n')
+                if lvl_user[0] in levl:
+                    await msg.answer('Молодец! Ты прошел режим заучивания этих 15 слов!', reply_markup=inline_back)
+                    await Level_english.repeat.set()
+                else:
+                    await msg.answer('Молодец! Ты выучил все слова этого уровня!', reply_markup=inline_test)
+                    await Level_english.test.set()
+
+@dp.callback_query_handler(lambda c: c.data == 'test', state=Level_english.test)
+async def mode_test(msg: types.CallbackQuery, state=FSMContext):
+    await msg.message.answer('Красава')
+
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
