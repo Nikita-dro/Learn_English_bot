@@ -6,6 +6,17 @@ inline_back.add(types.InlineKeyboardButton('Back👈', callback_data='back'))
 inline_menu = types.InlineKeyboardMarkup()
 inline_menu.add(types.InlineKeyboardButton('Меню💻', callback_data='menu'))
 
+test_menu = types.ReplyKeyboardMarkup()
+test_menu.add(types.KeyboardButton('Продолжить позже😙'))
+
+inline_start = types.InlineKeyboardMarkup()
+inline_start.add(types.InlineKeyboardButton('Начать тест', callback_data='new'))
+
+choice_test = types.InlineKeyboardMarkup(row_width=1)
+m_1 = types.InlineKeyboardButton('Начать тест', callback_data='new')
+m_2 = types.InlineKeyboardButton('Продолжить тест этого уровня😌', callback_data='old')
+choice_test.add(m_1, m_2)
+
 choice_md = types.InlineKeyboardMarkup(row_width=1)
 md_1 = types.InlineKeyboardButton('Выбрать новый уровень английского🤔', callback_data='new')
 md_2 = types.InlineKeyboardButton('Продолжить обучение прошлого уровня😌', callback_data='old')

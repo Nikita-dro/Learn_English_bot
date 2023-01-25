@@ -9,7 +9,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils import executor
 from decouple import config
 from googletrans import Translator
-from keyboards import inline_keyboard, inline_mode, choice_md, inline_back, inline_levels, inline_cards, inline_test, inline_menu
+from keyboards import inline_keyboard, inline_mode, choice_md, inline_back, inline_levels, inline_cards, inline_test, inline_menu, test_menu, choice_test, inline_start
 
 TOKEN = config('API_TOKEN')
 
@@ -23,6 +23,7 @@ path_description = 'description.txt'
 path_info = 'levels_english'
 path_count_words = 'count_words.json'
 path_translate = 'translate.json'
+path_test = 'test.json'
 answer_on_correct = ['Молодец😊', 'Так держать😙', 'Я тобой горжусь😊', 'Неплохо😏', 'Отлично😊']
 answer_on_wrong = ['Ты немного ошибся😶', 'Нет😥', 'Ну нет же🙄', 'Неа😥', 'Ты ошибся🤔']
 
@@ -161,7 +162,7 @@ async def back_registration(msg: types.CallbackQuery, state=FSMContext):
     await msg.message.edit_text('Теперь выбери режим изучения!🤗', reply_markup=inline_mode)
     await Level_english.mode_1.set()
 
-@dp.callback_query_handler(lambda c: c.data == 'menu', state=Level_english.test_otvet)
+@dp.callback_query_handler(lambda c: c.data == 'menu', state='*')
 async def back_menu(msg: types.CallbackQuery, state=FSMContext):
     await msg.message.edit_text('Выберите что вас интересует!', reply_markup=choice_md)
     await Level_english.choice.set()
@@ -394,25 +395,93 @@ async def answer_check(msg: types.Message, state=FSMContext):
 
 #Режим тест
 @dp.callback_query_handler(lambda c: c.data == 'test', state='*')
-async def mode_test(msg: types.CallbackQuery, state=FSMContext):
+async def test(msg: types.CallbackQuery, state=FSMContext):
+    async with state.proxy() as data:
+        id_user = data['id']
+        lvl_user = data['lvl']
+    with open(path_test, 'r+') as f:
+        try:
+            content = json.load(f)
+            if lvl_user in content[id_user].keys():
+                await msg.message.edit_text('Выберите что вас интересует!', reply_markup=choice_test)
+            else:
+                await msg.message.edit_text('Вы всё сможете! Я в вас верю😊', reply_markup=inline_start)
+        except:
+            await msg.message.edit_text('Вы всё сможете! Я в вас верю😊', reply_markup=inline_start)
+    await Level_english.test.set()
+
+@dp.callback_query_handler(lambda c: c.data == 'old', state=Level_english.test)
+async def test_old(msg: types.CallbackQuery, state=FSMContext):
+    async with state.proxy() as data:
+        id_user = data['id']
+        lvl_user = data['lvl']   
+        with open(path_test, 'r') as f:
+            content = json.load(f)
+            data['correct'] = content[id_user][lvl_user]["correct"]
+            data['wrong'] = content[id_user][lvl_user]["wrong"]
+            data['all'] = content[id_user][lvl_user]["all"]
+        with open(path_translate, 'r') as file:
+            content_1 = json.load(file)
+        key = list(content_1[lvl_user].keys())
+        data['keys'] = key[data['all']:]
+        await msg.message.answer(f'✍️{data["keys"][0]} - {"?"*5}', reply_markup=test_menu)
+        await Level_english.test_otvet.set()
+    
+@dp.message_handler(text="Продолжить позже😙", state=Level_english.test_otvet)
+async def break_test(msg: types.Message, state=FSMContext):
+    async with state.proxy() as data:
+        id_user = data['id']
+        lvl_user = data['lvl']
+        correct = data['correct']
+        wrong = data['wrong']
+        all = data['all']
+    with open(path_test, 'r+') as f:
+        try:
+            content = json.load(f)
+            with open(path_test, 'w') as f_1:
+                if id_user in content.keys():
+                        content[id_user][lvl_user] = {"correct": correct, "wrong": wrong, "all": all}
+                else:
+                    content[id_user] = {lvl_user: {"correct": correct, "wrong": wrong, "all": all-1}}
+                f_1.write(json.dumps(content))
+        except:
+            test_dict = {}
+            test_dict[id_user] = {lvl_user: {"correct": correct, "wrong": wrong, "all": all-1}}
+            f.write(json.dumps(test_dict))
+        await msg.answer('Я запомнил твои результаты!', reply_markup=types.ReplyKeyboardRemove())
+        await msg.answer('Выберите что вас интересует!', reply_markup=choice_md)
+        await Level_english.choice.set()
+
+@dp.callback_query_handler(lambda c: c.data == 'new', state=Level_english.test)
+async def tesy_new(msg: types.CallbackQuery, state=FSMContext):
     async with state.proxy() as data:
         lvl_user = data['lvl']
+        id_user = data['id']
         with open(path_translate, 'r') as file:
             content = json.load(file)
         key = list(content[lvl_user].keys())
-        await msg.message.edit_text(f'✍️{key[0]} - {"?"*5}')
+        await msg.message.answer(f'✍️{key[0]} - {"?"*5}', reply_markup=test_menu)
         data['keys'] = key
         data['correct'] = 0
         data['wrong'] = 0
-        data['all'] = 1
+        with open(path_test, 'r') as f:
+            try:
+                content = json.load(f)
+                if lvl_user in content[id_user].keys():
+                    data['all'] = 0
+                else:
+                    data['all'] = 1
+            except:
+                data['all'] = 1
     await Level_english.test_otvet.set() 
-                  
+                    
 @dp.message_handler(state=Level_english.test_otvet)
 async def test_answer_check(msg: types.Message, state=FSMContext):
     async with state.proxy() as data:
         id_user = data['id']
         keys = data['keys']
         lvl_user = data['lvl']
+        data['all'] += 1
         with open(path_translate, 'r') as file:
             content = json.load(file)
             if content[lvl_user][keys[0]] == msg.text.lower():
@@ -425,13 +494,17 @@ async def test_answer_check(msg: types.Message, state=FSMContext):
             data['keys'] = keys
             if len(keys) > 0:
                 await msg.answer(f'✍️{keys[0]} - {"?"*5}')
-                data['all'] += 1
             else:
                 await msg.answer(f'Молодец! Ты прошел тест!😊\n<b>Всего вопросов:</b> {data["all"]}\n<b>Количество правильных ответов:</b> {data["correct"]}\n<b>Количество неправильных ответов:</b> {data["wrong"]}', parse_mode='HTML')
                 if data['correct'] > data['wrong']:
                     await msg.answer('Молодец! Ты хорошо выучил слова этого уровня!😗', reply_markup=inline_menu)
                 else:
                     await msg.answer('Твои результаты не очень хорошие😢\nПопробуй снова выучить слова этого уровня!', reply_markup=inline_menu)
+                with open(path_test, 'r') as f:
+                    content = json.load(f)
+                with open(path_test, 'w') as f_1:
+                    content[id_user].pop(lvl_user)
+                    f_1.write(json.dumps(content))
                 with open(path_levels, 'r') as file_1:
                     content_1 = json.load(file_1)
                 with open(path_levels, 'w') as file_2:
@@ -445,7 +518,7 @@ async def test_answer_check(msg: types.Message, state=FSMContext):
                             file_4.write(json.dumps(content))
                 except:
                     pass
-    await state.finish()
+                await state.finish()
 
 @dp.message_handler(state='*')
 async def bot_otvet(msg: types.Message):
